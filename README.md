@@ -41,5 +41,6 @@ The app runs completely in the browser with no login or backend required.
    - Click OK to stop the alarm
 6. Use **Download Backup** to save tasks
 7. Use **Import Backup** to restore tasks
+8. Once the timer hits, you can use the reset button to stop the ring and reuse the timer again.
 
 
