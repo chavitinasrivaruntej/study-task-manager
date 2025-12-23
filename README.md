@@ -42,10 +42,4 @@ The app runs completely in the browser with no login or backend required.
 6. Use **Download Backup** to save tasks
 7. Use **Import Backup** to restore tasks
 
----
 
-## 🌐 Live Demo
-
-Once deployed using GitHub Pages or Vercel, the app can be accessed directly from the browser.
-
-Example:
