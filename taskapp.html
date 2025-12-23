@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Study Task Manager</title>
+  <style>
+    body {
+       font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+  color: #f5f5f5;
+  overflow-x: hidden;
+
+  background-image: url("bg.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+    }
+
+    @keyframes gradientWave {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .container {
+    background: rgba(43, 43, 43, 0.9);
+      margin-top: 40px;
+      padding: 20px 30px;
+      border-radius: 15px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+      width: 90%;
+      max-width: 700px;
+      position: relative;
+      z-index: 1;
+    }
+
+    h1, h2 {
+      text-align: center;
+    }
+
+    .task-input, .timer-input, .backup-controls {
+      display: flex;
+      justify-content: center;
+      margin: 15px 0;
+      gap: 10px;
+    }
+
+    input[type="text"], input[type="number"] {
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #444;
+      background: #3a3a3a;
+      color: #f5f5f5;
+      flex: 1;
+    }
+
+    button {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 8px;
+      background: #4CAF50;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    button:hover {
+      background: #45a049;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    li {
+      background: #3a3a3a;
+      margin: 10px 0;
+      padding: 12px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    li.completed {
+      text-decoration: line-through;
+      color: #999;
+      background: #2a2a2a;
+    }
+
+    li span {
+      flex: 1;
+      text-align: center;
+    }
+
+    .delete-btn {
+      background: #e53935;
+    }
+
+    .delete-btn:hover {
+      background: #d32f2f;
+    }
+
+    .timer-container {
+      position: relative;
+      width: 200px;
+      height: 200px;
+      margin: 20px auto;
+    }
+
+    .timer-svg {
+      transform: rotate(-90deg);
+    }
+
+    .timer-circle-bg {
+      fill: none;
+      stroke: #444;
+      stroke-width: 12;
+    }
+
+    .timer-circle {
+      fill: none;
+      stroke: #4CAF50;
+      stroke-width: 12;
+      stroke-linecap: round;
+      stroke-dasharray: 565.48;
+      stroke-dashoffset: 0;
+    }
+
+    .timer-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 28px;
+      font-weight: bold;
+    }
+
+    .timer-controls {
+      text-align: center;
+    }
+.blur-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+
+  background: rgba(0, 0, 0, 0.4);
+  z-index: -1;
+}
+  </style>
+</head>
+
+<body>
+<div class="blur-overlay"></div>
+<div class="container">
+  <h1>📚 Study Task Manager</h1>
+
+  <div class="task-input">
+    <input type="text" id="taskInput" placeholder="Enter subject/topic">
+    <button onclick="addTask()">Add Task</button>
+  </div>
+
+  <ul id="taskList"></ul>
+
+  <div class="backup-controls">
+    <button onclick="downloadBackup()">Download Backup</button>
+    <input type="file" id="importFile" hidden onchange="importBackup(event)">
+    <button onclick="document.getElementById('importFile').click()">Import Backup</button>
+  </div>
+
+  <h2>⏳ Study Timer</h2>
+
+  <div class="timer-input">
+    <input type="number" id="minutesInput" placeholder="Minutes" min="1">
+    <button id="startBtn" onclick="unlockAudio(); startTimer()">Start</button>
+  </div>
+
+  <div class="timer-container">
+    <svg class="timer-svg" width="200" height="200">
+      <circle class="timer-circle-bg" cx="100" cy="100" r="90"></circle>
+      <circle class="timer-circle" cx="100" cy="100" r="90"></circle>
+    </svg>
+    <div class="timer-text" id="timerDisplay">00:00</div>
+  </div>
+
+  <div class="timer-controls">
+    <button id="pauseBtn" onclick="pauseTimer()" style="display:none">Pause</button>
+    <button onclick="resetTimer()">Reset</button>
+  </div>
+</div>
+
+<audio id="bellSound" loop>
+  <source src="audio.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+  // ---------- TASKS ----------
+  let tasks = [];
+  const taskList = document.getElementById("taskList");
+
+  function renderTasks() {
+    taskList.innerHTML = "";
+    tasks.forEach((task, i) => {
+      const li = document.createElement("li");
+      if (task.completed) li.classList.add("completed");
+
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = task.completed;
+      cb.onchange = () => {
+        tasks[i].completed = cb.checked;
+        saveTasks();
+        renderTasks();
+      };
+
+      const span = document.createElement("span");
+      span.textContent = task.text;
+
+      const del = document.createElement("button");
+      del.textContent = "Delete";
+      del.className = "delete-btn";
+      del.onclick = () => {
+        tasks.splice(i, 1);
+        saveTasks();
+        renderTasks();
+      };
+
+      li.append(cb, span, del);
+      taskList.appendChild(li);
+    });
+  }
+ 
+  function stopAlarm() {
+  const sound = document.getElementById("bellSound");
+  sound.pause();
+  sound.currentTime = 0;
+}
+
+  function addTask() {
+    const input = document.getElementById("taskInput");
+    if (!input.value.trim()) return;
+    tasks.push({ text: input.value.trim(), completed: false });
+    input.value = "";
+    saveTasks();
+    renderTasks();
+  }
+
+  function saveTasks() {
+    localStorage.setItem("tasks", JSON.stringify(tasks));
+  }
+
+  window.onload = () => {
+    const saved = localStorage.getItem("tasks");
+    if (saved) {
+      tasks = JSON.parse(saved);
+      renderTasks();
+    }
+  };
+  function unlockAudio() {
+  const sound = document.getElementById("bellSound");
+  sound.play().then(() => {
+    sound.pause();
+    sound.currentTime = 0;
+  }).catch(() => {});
+}
+
+
+  // ---------- BACKUP ----------
+  function downloadBackup() {
+    const blob = new Blob([JSON.stringify(tasks, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "tasks_backup.json";
+    a.click();
+  }
+
+  function importBackup(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      tasks = JSON.parse(reader.result);
+      saveTasks();
+      renderTasks();
+    };
+    reader.readAsText(file);
+  }
+
+  // ---------- ACCURATE TIMER ----------
+  let timer = null;
+  let startTime = null;
+  let duration = 0;
+  let pausedTime = 0;
+  let pauseStart = null;
+
+  const circle = document.querySelector(".timer-circle");
+  const circumference = 2 * Math.PI * 90;
+
+  function startTimer() {
+    const minutes = document.getElementById("minutesInput").value;
+    if (!minutes && !startTime) return;
+
+    if (!startTime) {
+      duration = minutes * 60000;
+      startTime = Date.now();
+    }
+
+    if (pauseStart) {
+      pausedTime += Date.now() - pauseStart;
+      pauseStart = null;
+    }
+
+    timer = setInterval(updateTimer, 250);
+    document.getElementById("startBtn").style.display = "none";
+    document.getElementById("pauseBtn").style.display = "inline-block";
+  }
+
+  function updateTimer() {
+    const elapsed = Date.now() - startTime - pausedTime;
+    const remaining = duration - elapsed;
+
+    if (remaining <= 0) {
+   const sound = document.getElementById("bellSound");
+   sound.currentTime = 0;
+   sound.play();
+   clearInterval(timer);
+   timer = null;
+   return;
+}
+
+    const m = Math.floor(remaining / 60000);
+    const s = Math.floor((remaining % 60000) / 1000);
+    const text = `${m.toString().padStart(2,"0")}:${s.toString().padStart(2,"0")}`;
+
+    document.getElementById("timerDisplay").textContent = text;
+    document.title = `⏳ ${text} | Study Task Manager`;
+
+    const progress = circumference * (1 - remaining / duration);
+    circle.style.strokeDashoffset = progress;
+  }
+
+  function pauseTimer() {
+    if (timer) {
+      clearInterval(timer);
+      timer = null;
+      pauseStart = Date.now();
+      document.getElementById("pauseBtn").textContent = "Resume";
+    } else {
+      startTimer();
+      document.getElementById("pauseBtn").textContent = "Pause";
+    }
+  }
+
+  function resetTimer() {
+    stopAlarm();
+    clearInterval(timer);
+    timer = null;
+    startTime = null;
+    pausedTime = 0;
+    pauseStart = null;
+    duration = 0;
+
+    document.getElementById("timerDisplay").textContent = "00:00";
+    circle.style.strokeDashoffset = 0;
+    document.title = "Study Task Manager";
+
+    document.getElementById("startBtn").style.display = "inline-block";
+    document.getElementById("pauseBtn").style.display = "none";
+    document.getElementById("pauseBtn").textContent = "Pause";
+  }
+</script>
+</body>
+</html>
